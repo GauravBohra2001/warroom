@@ -2,13 +2,13 @@
 
 **Break it before your users do.**
 
-👉 **LIVE DEMO:** https://warroom-eta.vercel.app/
+**LIVE DEMO:** https://warroom-eta.vercel.app/
 
 Click "Start Hosted Demo Mode" to see it in action.
 
-## 🏆 Achievement
+##  Achievement
 
-Winner — [ADD YOUR HACKATHON NAME HERE]
+Winner - Consumer AI Track, Resolution Hack
 
 WARROOM answers one question: what happens when your app breaks?
 
