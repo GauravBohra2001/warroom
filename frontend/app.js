@@ -228,6 +228,34 @@ const HOSTED_DEMO_LIVE_LINES = [
   "Simulated load is stressing checkout while the app status reflects the curated signal set.",
   "This walkthrough mirrors the same verdict narrative you’d get from the full local stack.",
 ];
+const HOSTED_DEMO_REMEDIATION_PROMPT = {
+  prompt:
+    "Record a remediation prompt that steadies checkout with retries, graceful degradation, and stronger admission controls."
+};
+const HOSTED_DEMO_REMEDIATION_APPLY_RESPONSE = {
+  drill_type: HOSTED_DEMO_DRILL,
+  message: "Remediation prompt recorded for the hosted demo scenario."
+};
+const HOSTED_DEMO_REMEDIATION_VERIFY_RESPONSE = {
+  resolved: false,
+  success_rate: HOSTED_DEMO_EVIDENCE.success_rate,
+  message: "Verification simulation predicts the scenario is still degraded until the remediation prompt is executed."
+};
+const HOSTED_DEMO_RESET_RESPONSE = {
+  status: "demo-reset",
+  drill_type: HOSTED_DEMO_DRILL
+};
+const HOSTED_DEMO_RESPONSES = {
+  remediationPrompt: HOSTED_DEMO_REMEDIATION_PROMPT,
+  remediationApply: HOSTED_DEMO_REMEDIATION_APPLY_RESPONSE,
+  remediationVerify: HOSTED_DEMO_REMEDIATION_VERIFY_RESPONSE,
+  reset: HOSTED_DEMO_RESET_RESPONSE,
+  liveInterpretation: { lines: HOSTED_DEMO_LIVE_LINES }
+};
+
+function getHostedDemoResponse(key) {
+  return HOSTED_DEMO_RESPONSES[key];
+}
 const REAL_DRILL_TYPES = new Set(["db_down", "latency_spike"]);
 
 function getDrillModeLabel(drillType) {
@@ -629,6 +657,11 @@ function goBack() {
   showScreen("screen1");
 }
 
+function showDefineRiskScreen() {
+  maxUnlockedStep = 1;
+  showScreen("screen1");
+}
+
 function clearSimulationTimers() {
   simulationTimeoutIds.forEach((timeoutId) => clearTimeout(timeoutId));
   simulationTimeoutIds = [];
@@ -923,7 +956,7 @@ function generateLiveNarration() {
 
 async function fetchLiveInterpretation() {
   if (hostedDemoMode) {
-    return Promise.resolve({ lines: HOSTED_DEMO_LIVE_LINES });
+    return Promise.resolve(getHostedDemoResponse("liveInterpretation"));
   }
 
   const response = await fetch("http://127.0.0.1:8000/drill/live-interpretation");
@@ -1138,6 +1171,10 @@ async function fetchActionPlan() {
 async function resetDrillRequest() {
   console.log("[WARROOM] reset request start");
 
+  if (hostedDemoMode) {
+    return Promise.resolve(getHostedDemoResponse("reset"));
+  }
+
   const response = await fetch("http://127.0.0.1:8000/drill/reset", {
     method: "POST"
   });
@@ -1154,6 +1191,9 @@ async function resetDrillRequest() {
 }
 
 async function fetchRemediationPrompt(drillType) {
+  if (hostedDemoMode) {
+    return Promise.resolve(getHostedDemoResponse("remediationPrompt"));
+  }
   const response = await fetch(`http://127.0.0.1:8000/remediation/prompt?drill_type=${encodeURIComponent(drillType)}`);
 
   if (!response.ok) {
@@ -1164,6 +1204,9 @@ async function fetchRemediationPrompt(drillType) {
 }
 
 async function applyRemediationPrompt(promptText, drillType) {
+  if (hostedDemoMode) {
+    return Promise.resolve(getHostedDemoResponse("remediationApply"));
+  }
   const response = await fetch("http://127.0.0.1:8000/remediation/apply", {
     method: "POST",
     headers: {
@@ -1183,6 +1226,9 @@ async function applyRemediationPrompt(promptText, drillType) {
 }
 
 async function verifyRemediation(drillType) {
+  if (hostedDemoMode) {
+    return Promise.resolve(getHostedDemoResponse("remediationVerify"));
+  }
   const response = await fetch("http://127.0.0.1:8000/remediation/verify", {
     method: "POST",
     headers: {
@@ -1455,8 +1501,23 @@ function populateActionPlanScreen() {
     .join("");
 }
 
+function renderHostedDemoVerdict() {
+  verdictTransitionInFlight = false;
+  verdictState = buildVerdictState(HOSTED_DEMO_EVIDENCE);
+  actionPlanState = HOSTED_DEMO_ACTION_PLAN;
+  populateVerdictScreen();
+  populateActionPlanScreen();
+  setMaxUnlockedStep(4);
+  showScreen("screen4");
+  console.log("[WARROOM] hosted demo verdict rendered");
+}
+
 async function showVerdictScreen() {
   toggleHostedLiveNote(false);
+  if (hostedDemoMode) {
+    renderHostedDemoVerdict();
+    return;
+  }
   if (verdictTransitionInFlight) {
     return;
   }
@@ -1597,6 +1658,11 @@ function viewVerdict() {
 
 function backToSimulation() {
   console.log("[WARROOM] back to simulation clicked");
+  if (hostedDemoMode) {
+    showDefineRiskScreen();
+    return;
+  }
+
   showScreen("screen3");
   renderBattleState();
 }
@@ -1663,8 +1729,28 @@ function toggleEvidence() {
   console.log(`[WARROOM] evidence panel ${isHidden ? "expanded" : "collapsed"}`);
 }
 
+function handleHostedDemoReset() {
+  console.log("[WARROOM] hosted demo reset path");
+  hostedDemoMode = false;
+  hostedDemoPollCount = 0;
+  currentPlan = null;
+  currentDrillId = null;
+  maxUnlockedStep = 1;
+  resetBattleState();
+  setRemediationStatusText("No remediation prompt recorded yet.");
+  setResetButtonState(false);
+  toggleHostedLiveNote(false);
+  updateModeLabels();
+  showDefineRiskScreen();
+}
+
 async function resetToStart() {
   if (resetInProgress) {
+    return;
+  }
+
+  if (hostedDemoMode) {
+    handleHostedDemoReset();
     return;
   }
 
