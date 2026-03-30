@@ -125,6 +125,152 @@ const DB_DOWN_SIMULATION_STEPS = [
   }
 ];
 
+let hostedDemoMode = false;
+let hostedDemoPollCount = 0;
+
+const HOSTED_DEMO_DRILL = "request_flood";
+const HOSTED_DEMO_STATUS = [
+  {
+    app_status: "running",
+    db_status: "running",
+    success_rate: 100,
+    error_count: 0,
+    p95_latency: 120,
+    first_failure_time: null,
+    timeline: ["00:00 - Drill started"],
+    mcp_activity: ["Hosted demo: request flood model warming up"],
+  },
+  {
+    app_status: "running",
+    db_status: "running",
+    success_rate: 96,
+    error_count: 4,
+    p95_latency: 210,
+    first_failure_time: 3,
+    timeline: ["00:00 - Drill started", "00:03 - request volume increasing"],
+    mcp_activity: ["Hosted demo: request flood signals rising"],
+  },
+  {
+    app_status: "degraded",
+    db_status: "running",
+    success_rate: 88,
+    error_count: 7,
+    p95_latency: 340,
+    first_failure_time: 3,
+    timeline: [
+      "00:00 - Drill started",
+      "00:03 - request volume increasing",
+      "00:05 - Error rate increasing",
+    ],
+    mcp_activity: ["Hosted demo: collecting failure evidence"],
+  },
+  {
+    app_status: "degraded",
+    db_status: "running",
+    success_rate: 84,
+    error_count: 14,
+    p95_latency: 510,
+    first_failure_time: 3,
+    timeline: [
+      "00:00 - Drill started",
+      "00:03 - request volume increasing",
+      "00:05 - Error rate increasing",
+      "00:10 - Drill complete",
+    ],
+    mcp_activity: ["Hosted demo: verdict-ready evidence captured"],
+  },
+];
+
+const HOSTED_DEMO_EVIDENCE = {
+  success_rate: 84,
+  p95_latency: 510,
+  error_count: 14,
+  first_failure_time: 3,
+  likely_cause:
+    "Checkout reliability collapsed because the simulated request flood overwhelmed the single dependency pathway.",
+  suggested_fix:
+    "Add admission controls, retries, and graceful degradation so checkout can recover even when traffic surges.",
+  summary: "The simulated request flood shows how a dependency bottleneck can sink checkout under sustained load.",
+  logs: [
+    "[load] request flood started",
+    "[app] POST /checkout -> 503 overloaded",
+    "[metrics] success_rate=84 error_count=14 p95_latency=510",
+  ],
+  timeline: [
+    "00:00 - Drill started",
+    "00:03 - Request volume increasing",
+    "00:05 - Error rate increasing",
+    "00:10 - Drill complete",
+  ],
+  resolved: false,
+};
+
+const HOSTED_DEMO_ACTION_PLAN = {
+  do_now: [
+    "Stabilize the checkout rate limiter and observe the error budget.",
+    "Pause risky deployments while the dependency fix is live.",
+    "Monitor the synthetic flood to ensure stability before release demos.",
+  ],
+  fix_in_code: [
+    "Add retry logic and circuit breakers around the checkout path.",
+    "Introduce graceful fallback responses when dependencies are saturated.",
+    "Strengthen load shedding or queueing so surges never exhaust the service.",
+  ],
+  improve_later: [
+    "Run the guide suite regularly to ensure resilience keeps improving.",
+    "Model the dependency budget to spot future bottlenecks early.",
+    "Capture this pattern in the runbook for the next release team.",
+  ],
+};
+
+const HOSTED_DEMO_LIVE_LINES = [
+  "WARROOM is replaying a safe request flood scenario so recruiters can follow the story.",
+  "Simulated load is stressing checkout while the app status reflects the curated signal set.",
+  "This walkthrough mirrors the same verdict narrative you’d get from the full local stack.",
+];
+const REAL_DRILL_TYPES = new Set(["db_down", "latency_spike"]);
+
+function getDrillModeLabel(drillType) {
+  if (!drillType) {
+    return "Simulated Risk Drill";
+  }
+  return REAL_DRILL_TYPES.has(drillType) ? "Real Local Drill" : "Simulated Risk Drill";
+}
+
+function getDrillModeDescription(drillType) {
+  if (REAL_DRILL_TYPES.has(drillType)) {
+    return "Mode: Real Local Drill (Podman + Toxiproxy control).";
+  }
+  if (drillType) {
+    return "Mode: Simulated Risk Drill (AI-guided scenario playback).";
+  }
+  return "Mode: Real local drills use Podman/Toxiproxy; simulated risk drills replay curated AI narratives.";
+}
+
+function updateModeLabels(drillType) {
+  const modeLabel = drillType ? getDrillModeLabel(drillType) : "Simulated Risk Drill";
+  const missionMode = document.getElementById("drillModeLabel");
+  if (missionMode) {
+    missionMode.textContent = modeLabel;
+  }
+  const verdictMode = document.getElementById("verdictModeLabel");
+  if (verdictMode) {
+    verdictMode.textContent = modeLabel;
+  }
+  const battleMode = document.getElementById("battleModeText");
+  if (battleMode) {
+    battleMode.textContent = getDrillModeDescription(drillType);
+  }
+}
+
+function toggleHostedLiveNote(show) {
+  const note = document.getElementById("hostedLiveNote");
+  if (!note) {
+    return;
+  }
+  note.classList.toggle("hidden", !show);
+}
+
 let currentPlan = null;
 let currentDrillId = null;
 let battleState = cloneBattleState(DEFAULT_BATTLE_STATE);
@@ -244,8 +390,46 @@ function runAIDecide() {
   console.log("[WARROOM] AI decide mode selected");
 }
 
+function startHostedDemo() {
+  hostedDemoMode = true;
+  hostedDemoPollCount = 0;
+  const fearInput = document.getElementById("fearInput");
+  if (fearInput) {
+    fearInput.value = "Hosted demo: what happens when requests flood checkout?";
+  }
+  setRemediationStatusText("No remediation prompt recorded yet.");
+  const config = DRILL_CONFIG[HOSTED_DEMO_DRILL];
+  const plan = {
+    drillType: HOSTED_DEMO_DRILL,
+    label: config.label,
+    targetService: config.targetService,
+    duration: config.duration,
+    impact: config.impact,
+  };
+  currentPlan = plan;
+  currentDrillId = "demo-hosted-1";
+  updateModeLabels(HOSTED_DEMO_DRILL);
+  startHostedDrillFlow();
+}
+
+function startHostedDrillFlow() {
+  startDrillStatusPolling();
+  toggleHostedLiveNote(true);
+}
+
 async function classifyFear(fear) {
   console.log("[WARROOM] classification request started", { fear });
+
+  if (hostedDemoMode) {
+    const config = DRILL_CONFIG[HOSTED_DEMO_DRILL];
+    return {
+      drillType: HOSTED_DEMO_DRILL,
+      label: config.label,
+      targetService: config.targetService,
+      duration: config.duration,
+      impact: config.impact,
+    };
+  }
 
   const response = await fetch("http://127.0.0.1:8000/classify", {
     method: "POST",
@@ -274,6 +458,14 @@ async function classifyFear(fear) {
 
 async function startDrillRequest(drillType, duration, intensity) {
   console.log("[WARROOM] drill start request started", { drillType, duration, intensity });
+
+  if (hostedDemoMode) {
+    hostedDemoPollCount = 0;
+    return Promise.resolve({
+      drill_id: "demo-hosted-1",
+      status: "started",
+    });
+  }
 
   const response = await fetch("http://127.0.0.1:8000/drill/start", {
     method: "POST",
@@ -398,6 +590,7 @@ function populateApprovalScreen(plan) {
   document.getElementById("impact").textContent = plan.impact;
   updateMissionHeader(plan);
   updateApprovalHelper();
+  updateModeLabels(plan.drillType);
 }
 
 function setDurationOption(duration) {
@@ -482,6 +675,7 @@ function resetBattleState() {
   renderBattleState();
   setViewVerdictButtonVisible(false);
   resetEvidencePanel();
+  toggleHostedLiveNote(false);
   console.log("[WARROOM] battle state reset");
 }
 
@@ -728,6 +922,10 @@ function generateLiveNarration() {
 }
 
 async function fetchLiveInterpretation() {
+  if (hostedDemoMode) {
+    return Promise.resolve({ lines: HOSTED_DEMO_LIVE_LINES });
+  }
+
   const response = await fetch("http://127.0.0.1:8000/drill/live-interpretation");
 
   if (!response.ok) {
@@ -902,6 +1100,10 @@ function applyDrillStatus(statusData) {
 async function fetchDrillEvidence() {
   console.log("[WARROOM] evidence fetch start");
 
+  if (hostedDemoMode) {
+    return Promise.resolve(HOSTED_DEMO_EVIDENCE);
+  }
+
   const response = await fetch("http://127.0.0.1:8000/drill/evidence");
 
   if (!response.ok) {
@@ -917,6 +1119,10 @@ async function fetchDrillEvidence() {
 
 async function fetchActionPlan() {
   console.log("[WARROOM] action plan fetch start");
+
+  if (hostedDemoMode) {
+    return Promise.resolve(HOSTED_DEMO_ACTION_PLAN);
+  }
 
   const response = await fetch("http://127.0.0.1:8000/drill/action-plan");
 
@@ -1014,7 +1220,7 @@ async function generateFixPrompt() {
     const data = await fetchRemediationPrompt(currentPlan.drillType);
     const textarea = document.getElementById("remediationPromptInput");
     textarea.value = data.prompt || "";
-    setRemediationStatusText("Fix prompt generated. Review and apply when ready.");
+    setRemediationStatusText("Remediation prompt recorded. Review and run the verification simulation when ready.");
   } catch (error) {
     console.error("[WARROOM] remediation prompt fetch failed", error);
     alert("Could not generate remediation prompt. Please make sure the backend is running.");
@@ -1037,7 +1243,7 @@ async function applyFixPrompt() {
 
   try {
     const result = await applyRemediationPrompt(promptText, currentPlan.drillType);
-    setRemediationStatusText(`Prompt applied for ${result.drill_type}. Run verification re-test.`);
+    setRemediationStatusText(`Remediation prompt recorded for ${result.drill_type}. Run the verification simulation to confirm the predicted resolved state.`);
   } catch (error) {
     console.error("[WARROOM] remediation apply failed", error);
     alert("Could not apply remediation prompt. Please make sure the backend is running.");
@@ -1054,12 +1260,12 @@ async function runVerificationRetest() {
     const verification = await verifyRemediation(currentPlan.drillType);
 
     if (!verification.resolved) {
-      setRemediationStatusText("Verification blocked: apply a remediation prompt first.");
+      setRemediationStatusText("Verification simulation blocked: record a remediation prompt first.");
       alert("Apply a remediation prompt before running verification re-test.");
       return;
     }
 
-    setRemediationStatusText("Verification passed. Re-running the drill with remediation profile.", true);
+    setRemediationStatusText("Verification simulation predicts resolved state. Re-running the drill to confirm.", true);
 
     const selectedDuration = document.getElementById("durationSelect").value;
     const selectedIntensity = document.getElementById("intensitySelect").value;
@@ -1250,6 +1456,7 @@ function populateActionPlanScreen() {
 }
 
 async function showVerdictScreen() {
+  toggleHostedLiveNote(false);
   if (verdictTransitionInFlight) {
     return;
   }
@@ -1277,6 +1484,17 @@ async function showVerdictScreen() {
 }
 
 async function fetchDrillStatus() {
+  if (hostedDemoMode) {
+    hostedDemoPollCount = Math.min(hostedDemoPollCount + 1, HOSTED_DEMO_STATUS.length);
+    const snapshot = HOSTED_DEMO_STATUS[hostedDemoPollCount - 1];
+    const status = hostedDemoPollCount >= HOSTED_DEMO_STATUS.length ? "complete" : "running";
+    return Promise.resolve({
+      drill_id: "demo-hosted-1",
+      status,
+      ...snapshot,
+    });
+  }
+
   const response = await fetch("http://127.0.0.1:8000/drill/status");
 
   if (!response.ok) {
@@ -1302,6 +1520,9 @@ async function pollDrillStatus() {
         renderBattleState();
         setViewVerdictButtonVisible(true);
         console.log("[WARROOM] battle screen completed, waiting for manual verdict");
+        if (hostedDemoMode) {
+          void showVerdictScreen();
+        }
       }
     }
   } catch (error) {
@@ -1349,6 +1570,7 @@ function startDrillStatusPolling() {
   }
 
   resetBattleState();
+  updateModeLabels(currentPlan?.drillType);
   setMaxUnlockedStep(3);
   showScreen("screen3");
   renderBattleState();
@@ -1446,6 +1668,11 @@ async function resetToStart() {
     return;
   }
 
+  if (hostedDemoMode) {
+    hostedDemoMode = false;
+    hostedDemoPollCount = 0;
+  }
+
   console.log("[WARROOM] reset button clicked");
   resetInProgress = true;
   setResetButtonState(true);
@@ -1460,8 +1687,9 @@ async function resetToStart() {
     if (remediationPromptInput) {
       remediationPromptInput.value = "";
     }
-    setRemediationStatusText("No remediation prompt applied yet.");
+    setRemediationStatusText("No remediation prompt recorded yet.");
     showScreen("screen1");
+    updateModeLabels();
     console.log("[WARROOM] UI returned to screen 1");
   } catch (error) {
     console.error("[WARROOM] reset failure", error);
@@ -1472,19 +1700,20 @@ async function resetToStart() {
   }
 }
 
-document.addEventListener("DOMContentLoaded", () => {
-  document.getElementById("durationSelect").addEventListener("change", updateApprovalHelper);
-  document.getElementById("intensitySelect").addEventListener("change", updateApprovalHelper);
-  document.querySelectorAll("[data-duration]").forEach((button) => {
-    button.addEventListener("click", () => setDurationOption(button.dataset.duration));
+  document.addEventListener("DOMContentLoaded", () => {
+    document.getElementById("durationSelect").addEventListener("change", updateApprovalHelper);
+    document.getElementById("intensitySelect").addEventListener("change", updateApprovalHelper);
+    document.querySelectorAll("[data-duration]").forEach((button) => {
+      button.addEventListener("click", () => setDurationOption(button.dataset.duration));
+    });
+    document.querySelectorAll("[data-intensity]").forEach((button) => {
+      button.addEventListener("click", () => setIntensityOption(button.dataset.intensity));
+    });
+    setResetButtonState(false);
+    setRemediationStatusText("No remediation prompt recorded yet.");
+    updateStepIndicator(1);
+    resetBattleState();
+    updateModeLabels();
+    showScreen("screen1");
+    console.log("[WARROOM] initialized");
   });
-  document.querySelectorAll("[data-intensity]").forEach((button) => {
-    button.addEventListener("click", () => setIntensityOption(button.dataset.intensity));
-  });
-  setResetButtonState(false);
-  setRemediationStatusText("No remediation prompt applied yet.");
-  updateStepIndicator(1);
-  resetBattleState();
-  showScreen("screen1");
-  console.log("[WARROOM] initialized");
-});

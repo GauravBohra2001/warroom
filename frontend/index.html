@@ -31,8 +31,9 @@
       <div class="landing-hero">
         <div class="landing-copy">
           <div class="eyebrow">WARROOM</div>
-          <h1>What breaks your app?</h1>
-          <p class="tagline">Break it before your users do</p>
+          <h1>Test how your app behaves when things go wrong</h1>
+          <p class="tagline">Simulate disruptions, see the impact, and plan fixes before customers feel it.</p>
+          <p class="hero-summary">WARROOM runs controlled drills, captures the resulting impact, and turns it into clear next steps so teams can stabilize production fast.</p>
 
           <input
             type="text"
@@ -51,8 +52,15 @@
           </div>
 
           <button type="button" class="primary-button" id="runBtn" onclick="runDrill()">Run Drill</button>
-          <button type="button" class="secondary-button ai-decide-button" id="aiDecideBtn" onclick="runAIDecide()">Let AI Decide &amp; Run Top Risks</button>
+          <div class="hero-demo-actions">
+            <button type="button" class="secondary-button ai-decide-button" id="aiDecideBtn" onclick="runAIDecide()">Let AI Decide &amp; Run Top Risks</button>
+            <div class="hosted-demo-cta">
+              <div class="hosted-demo-label">Recommended for recruiters</div>
+              <button type="button" class="secondary-button hosted-demo-button" id="demoModeButton" onclick="startHostedDemo()">Start Hosted Demo Mode</button>
+            </div>
+          </div>
           <p class="ai-decide-helper">Not sure what to test? WARROOM AI will run a short top-vulnerability suite across the app.</p>
+          <p class="hosted-demo-note" id="hostedDemoNote">Hosted Demo Mode shows the same story with safe simulated data; the local install still runs Podman + Toxiproxy drills for real infrastructure.</p>
         </div>
 
         <aside class="brand-visual-card">
@@ -81,6 +89,7 @@
             <div class="mission-label">Mission Confirmation</div>
             <h1 id="drillType">DB Down</h1>
             <p class="subtitle">Review the blast radius and launch the drill when the plan looks safe.</p>
+            <div class="drill-mode-label" id="drillModeLabel">Real Local Drill</div>
           </div>
         </div>
         <div class="threat-level">
@@ -159,7 +168,9 @@
       <div class="battle-topbar">
         <div>
           <h1>Live Failure Test</h1>
-          <p class="subtitle">WARROOM is running the approved failure simulation.</p>
+          <p class="subtitle">WARROOM is running the approved drill—real local mode for infra failures or AI-guided simulation for broader risk stories.</p>
+          <p class="battle-mode-text" id="battleModeText">Mode: Real local drills use Podman/Toxiproxy; simulated risk drills replay curated AI narratives.</p>
+          <p class="hosted-live-note hidden" id="hostedLiveNote">Running demo scenario…</p>
         </div>
         <button type="button" class="secondary-button abort-button" onclick="abortDrill()">Abort Drill</button>
       </div>
@@ -266,6 +277,7 @@
 
       <section class="card verdict-hero">
         <div class="verdict-badge verdict-badge-fail" id="verdictBadge">FAIL</div>
+        <div class="drill-mode-label verdict-mode-label" id="verdictModeLabel">Real Local Drill</div>
         <div class="verdict-copy">
           <div class="section-heading">Bottom Line</div>
           <p class="verdict-summary" id="verdictSummary">The system did not handle the dependency failure safely.</p>
@@ -400,20 +412,20 @@
       </details>
 
       <section class="card remediation-card">
-        <div class="section-heading">Fix Prompt Pipeline</div>
-        <p class="remediation-copy">Paste your remediation prompt, apply it to the test environment, then run a verification re-test.</p>
+        <div class="section-heading">Remediation Prompt Pipeline</div>
+        <p class="remediation-copy">Record or generate a remediation prompt so WARROOM can simulate the fix, then run the verification simulation to confirm the predicted resolved state.</p>
         <textarea
           id="remediationPromptInput"
           class="remediation-textarea"
           rows="7"
-          placeholder="Paste the fix prompt here..."
+          placeholder="Paste the remediation prompt here..."
         ></textarea>
         <div class="actions remediation-actions">
           <button type="button" class="secondary-button" id="generatePromptButton" onclick="generateFixPrompt()">Generate Fix Prompt</button>
           <button type="button" class="secondary-button" id="applyPromptButton" onclick="applyFixPrompt()">Apply Prompt</button>
           <button type="button" class="primary-button" id="verifyRetestButton" onclick="runVerificationRetest()">Run Verification Re-test</button>
         </div>
-        <div class="remediation-status" id="remediationStatusText">No remediation prompt applied yet.</div>
+        <div class="remediation-status" id="remediationStatusText">No remediation prompt recorded yet.</div>
       </section>
 
       <div class="actions">

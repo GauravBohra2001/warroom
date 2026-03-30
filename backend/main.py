@@ -1795,7 +1795,7 @@ def remediation_apply(payload: RemediationApplyRequest):
         "status": "applied",
         "drill_type": effective_drill_type,
         "applied_at": REMEDIATION_STATE["applied_at"],
-        "message": "Remediation prompt recorded. Run verification re-test to confirm no critical errors.",
+        "message": "Remediation prompt recorded. Run the verification simulation to confirm the predicted resolved state.",
     }
 
 
@@ -1821,9 +1821,9 @@ def remediation_verify(payload: RemediationVerifyRequest):
         "resolved": resolved,
         "status": "pass" if resolved else "needs_more_work",
         "message": (
-            "Verification predicts critical issues are cleared for this drill scenario."
+            "Verification simulation predicts critical issues are resolved for this drill scenario."
             if resolved
-            else "No remediation prompt applied for this drill type yet."
+            else "No remediation prompt recorded for this drill type yet."
         ),
         "metrics": {
             "success_rate": verification.get("success_rate"),
