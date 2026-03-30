@@ -161,7 +161,7 @@ open frontend/index.html
 - Demo Application: Flask + Postgres
 - Infrastructure: container-based environment
 
-## 🧪 Demo vs Full System
+## Demo vs Full System
 
 **Hosted Demo Mode** runs entirely in the browser with curated signals, so the story plays publicly without touching your backend. It is safe for recruiters and founders to explore.
 
