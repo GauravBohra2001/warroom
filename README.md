@@ -2,21 +2,23 @@
 
 **Break it before your users do.**
 
-WARROOM is a chaos engineering and resilience testing tool that allows developers, solo builders, and teams to simulate real system failures, observe their impact in real time, and understand how their application behaves under stress before it reaches production users.
+👉 **LIVE DEMO:** https://warroom-eta.vercel.app/
+
+Click "Start Hosted Demo Mode" to see it in action.
+
+## 🏆 Achievement
+
+Winner — [ADD YOUR HACKATHON NAME HERE]
+
+WARROOM answers one question: what happens when your app breaks?
+
+Simulate the failure, watch the fallout, and plan the fix before anyone notices.
 
 ## Why WARROOM Exists
 
-Modern applications are increasingly built:
+Modern apps ship fast, lean on AI-generated code, and depend on fragile services. Under stress they rarely fail gracefully.
 
-- by solo entrepreneurs shipping fast
-- using AI-generated code
-- with multiple external dependencies
-
-In this environment, systems often work in ideal conditions but fail unpredictably under stress.
-
-WARROOM is built to answer one critical question:
-
-**What happens when something breaks?**
+WARROOM keeps teams honest by forcing failure in a controlled environment so they know the cost before it hits customers.
 
 Instead of guessing, WARROOM lets you:
 
@@ -52,92 +54,68 @@ WARROOM provides a full loop from failure simulation to action:
 
 ### Failure Simulation
 
-Trigger real system-level failures in a controlled environment:
+Trigger container-level failure drills, including:
 
 - Database outage (`DB Down`)
 - Latency injection (`Latency Spike`)
 - Traffic surge (`Request Flood`)
 
-These are executed using container-level controls and network manipulation.
+Each drill manipulates containers, networking, and proxies so the failure is real and repeatable.
 
 ### Real-Time System Visibility
 
-WARROOM continuously monitors the system during a drill and shows:
+WARROOM watches the system and reports:
 
-- service status (application and database)
-- success rate and error count
+- application and database status
+- success rate vs. failure rate
 - response latency (`p95`)
-- time of first failure
+- first-failure timing
 - event timeline
 
-All metrics are derived from real responses, not simulated values.
+Metrics come from live responses captured during the drill.
 
 ### MCP-Based Control Plane
 
-WARROOM uses a control layer to execute and track system changes:
-
-- container stop and restart
-- latency injection via proxy
-- load generation
-
-This makes the system transparent and reproducible.
+The control layer issues container stops, latency injections, and load bursts with full traceability.
 
 ### Live Interpretation Layer
 
-WARROOM translates system signals into human-readable insights.
-
-Instead of raw logs or dashboards, it explains:
+Signals become plain English:
 
 - what is happening
-- why it is happening
-- how it affects users
-
-This makes it accessible even to non-expert users.
+- why it matters
+- how customers are affected
 
 ### Technical Verdict
 
-After each drill, WARROOM provides a clear diagnostic view:
+Post-drill diagnostics summarize:
 
 - what failed
-- how severe the failure was
-- supporting evidence (metrics and timeline)
+- severity of the failure
+- evidence and timeline
 - likely cause
 
 ### Action Plan for Recovery and Improvement
 
-WARROOM generates a structured next-step plan:
+WARROOM serves up next steps:
 
 - what to fix immediately
-- what to improve next
-- how to make the system more resilient
-
-These steps are written in a way that can be directly used with AI tools or engineering workflows.
+- code changes to implement
+- long-term resilience work
 
 ## Example Scenarios
 
 ### Database Outage
 
-Simulate the database going offline and observe:
-
-- checkout failures
-- application degradation
-- full loss of functionality in critical flows
+Take the database offline and see checkout fail, critical flows degrade, and customer‑facing paths stop.
 
 ### Latency Injection
 
-Introduce delay in database communication and observe:
-
-- increased response time
-- degraded user experience
-- potential cascading failures
+Add delay to database calls and watch response times climb as the user experience degrades.
 
 ### Traffic Surge
 
-Apply load to the system and observe:
-
-- system saturation
-- latency spikes
-- failure thresholds
+Flood the system with traffic, observe saturation, latency spikes, and the moment failure thresholds trigger.
 
 ## How to Run
 
@@ -183,34 +161,26 @@ open frontend/index.html
 - Demo Application: Flask + Postgres
 - Infrastructure: container-based environment
 
-## What Makes WARROOM Different
+## 🧪 Demo vs Full System
 
-WARROOM is not just a monitoring tool.
+**Hosted Demo Mode** runs entirely in the browser with curated signals, so the story plays publicly without touching your backend. It is safe for recruiters and founders to explore.
 
-It combines:
-
-- failure simulation
-- real-time observability
-- interpretation
-- action planning
-
-This creates a complete workflow from:
-
-**failure -> understanding -> resolution**
+**Local Mode** is the full chaos stack: Podman + MCP + Toxiproxy execute real failure simulations against your services for an accurate blast-radius view.
 
 ## Future Direction
 
 - deeper AI-assisted failure analysis
 - automated resilience scoring
-- integration with CI/CD pipelines
-- support for additional failure types and environments
+- CI/CD integration hooks
+- support for more failure types and environments
 
 ## Summary
 
-WARROOM helps you answer:
+WARROOM combines:
 
-- What breaks when my system is under stress?
-- How quickly does it fail?
-- What do I need to fix before users are impacted?
+- failure simulation
+- real-time observability
+- human-readable interpretation
+- action planning
 
-Instead of discovering failures in production, WARROOM lets you discover them safely and early.
+This delivers one workflow from **failure → understanding → resolution** while keeping recruiters and engineers aligned.
